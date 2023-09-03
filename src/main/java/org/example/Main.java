@@ -3,6 +3,10 @@ package org.example;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.http.HttpServletRequest;
+import org.example.service.VirtualThreadEmber;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.stereotype.Controller;
@@ -13,15 +17,42 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
 
-
+//@SpringBootApplication
 public class Main {
     public static void main(String[] args) {
+        SpringApplication.run(Main.class,args);
+        //new VirtualThreadEmber().impl();
+    }
+
+}
+@RestController
+@ResponseBody
+class NewJDKController{
+
+    private final ObservationRegistry observationRegistry;
+
+    public NewJDKController(ObservationRegistry observationRegistry) {
+        this.observationRegistry = observationRegistry;
+    }
+
+    @GetMapping("/factorial/{num}")
+    public BigInteger factorial(@PathVariable("num") int num){
+        long t1 = System.currentTimeMillis();
+        BigInteger res = calcFactorial(BigInteger.valueOf(num));
+        System.out.println("Time elapsed: "+(System.currentTimeMillis()-t1)+"ms");
+        return Observation.createNotStarted("factorial",observationRegistry)
+                .observe(()->res);
+        //return calcFactorial(num);
+    }
+    @GetMapping("/getCall")
+    public String getCall(){
         try {
             HashMap<String, String> parameters = new HashMap<>();
             URL url = new URL("https://www.wikihow.com/Save-Money");
@@ -32,36 +63,29 @@ public class Main {
             dis.writeBytes(ParameterStringBuilder.getParameterString(parameters));
             dis.flush();
             dis.close();
+            return dis.toString();
         }catch (IOException e){
             e.printStackTrace();
         }
-    }
-}
-@Controller
-@ResponseBody
-class NewJDKController{
-    private final ObservationRegistry observationRegistry;
-
-    public NewJDKController(ObservationRegistry observationRegistry) {
-        this.observationRegistry = observationRegistry;
+        return "All done";
     }
 
-    @GetMapping("/factorial/{num}")
-    public int factorial(@PathVariable("num") int num){
-        return Observation.createNotStarted("factorial",observationRegistry)
-                .observe(()->calcFactorial(num));
-        //return calcFactorial(num);
+    private String printFact(int num){
+        StringBuilder str = new StringBuilder();
+        return str.toString();
     }
 
-    private int calcFactorial(int num) {
-        if(num<1)
+    private BigInteger calcFactorial(BigInteger num) {
+        if(num.intValue()<1)
             throw new BadNumberException("Number is negative");
         //int res = 0;
-        if(num == 1){
-            return 1;
+        if(num.intValue()==1){
+            return BigInteger.ONE;
         }else{
-            return num*(calcFactorial(num-1));
+            //System.out.println(num);
+            return num.multiply(calcFactorial(num.subtract(BigInteger.ONE)));
         }
+
     }
 }
 class BadNumberException extends RuntimeException{
